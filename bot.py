@@ -1,5 +1,22 @@
+from http.server import HTTPServer, BaseHTTPRequestHandler
+import threading
 import os
 import discord
+
+# Mini servidor web falso para mantener contento a Render
+class SimpleHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"Bot is alive!")
+
+def run_server():
+    server = HTTPServer(('0.0.0.0', 10000), SimpleHandler)
+    server.serve_forever()
+
+# Iniciar el servidor web en un hilo secundario
+threading.Thread(target=run_server, daemon=True).start()
+
 from discord.ext import commands
 from discord.ui import Button, View
 import datetime
