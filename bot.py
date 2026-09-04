@@ -33,7 +33,7 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 # ==========================================
 
 # IDs numéricas de los canales
-CANAL_SALA_ID = 1544752204223873085        # #checkin-asistencia-sala
+CANAL_SALA_ID = 1545531547149402203        # #checkin-asistencia-sala
 CANAL_REPORTE_ID = 1545125674661060708     # #asistencia-reporte
 
 # Enlaces universales configurados
