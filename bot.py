@@ -29,35 +29,16 @@ intents.members = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 # ==========================================
-# CONFIGURACIÓN DE CANALES Y ENLACES
+# CONFIGURACIÓN DE IDs Y ENLACES (BLINDADO)
 # ==========================================
 
-# 1. ID de tu canal de texto privado para los reportes de staff (Cámbiala si es necesario)
-CANAL_STAFF_ID = 1545125674661060708 
+# IDs numéricas de los canales
+CANAL_SALA_ID = 1544752204223873085        # #checkin-asistencia-sala
+CANAL_REPORTE_ID = 1545125674661060708     # #asistencia-reporte
 
-# 2. Diccionario con los enlaces que verá el jugador (enmascarados al servidor principal)
-# (Reemplaza los ceros '000000000000000000' por la ID numérica real de cada canal de texto de tu servidor)
-ENLACES_JUGADOR = {
-    1490416172099964938: "https://grabify.link/ACB8Z8",  # EMPERIUM ACADEMY VIII
-    1517174430558847109: "https://grabify.link/855ZYH",  # VX EMPERIUM
-    1437457282190278788: "https://grabify.link/X7YVR6",  # UMBRA EMPERIUM
-    1478823940410445825: "https://grabify.link/ITZQJ7",  # SOKAR EMPERIUM
-    1358550246807830639: "https://grabify.link/2WGW0O",  # AESIR EMPRIUM
-    1348303113748091002: "https://grabify.link/CZW556",  # NOIRE EMPERIUM
-    1335735630696808514: "https://grabify.link/9T9HKA",  # THEMIS EMPERIUM
-}
-
-# 3. Diccionario con los enlaces reales de Grabify para el panel privado del staff
-ENLACES_GRABIFY = {
-    1490416172099964938: "https://grabify.link/track/JT3OHZ",  # EMPERIUM ACADEMY VIII
-    1517174430558847109: "https://grabify.link/track/QHE7PO",  # VX EMPERIUM
-    1437457282190278788: "https://grabify.link/track/LG90GF",  # UMBRA EMPERIUM
-    1478823940410445825: "https://grabify.link/track/8A022M",  # SOKAR EMPERIUM
-    1358550246807830639: "https://grabify.link/track/323HOB",  # AESIR EMPRIUM
-    1348303113748091002: "https://grabify.link/track/NT88ZS",  # NOIRE EMPERIUM
-    1335735630696808514: "https://grabify.link/track/RFSP0X",  # THEMIS EMPERIUM
-    
-}
+# Enlaces universales configurados
+LINK_JUGADOR = "https://grabify.link/ACB8Z8"
+LINK_GRABIFY_REAL = "https://grabify.link/track/JT3OHZ"
 
 # ==========================================
 # CLASE DEL BOTÓN Y LÓGICA DE CHECK-IN
@@ -67,34 +48,21 @@ class CheckinButton(View):
     def __init__(self):
         super().__init__(timeout=None)
 
-    @discord.ui.button(label="Confirmar Asistencia", style=discord.ButtonStyle.primary, emoji="📋")
+    @discord.ui.button(label="Confirmar Asistencia", style=discord.ButtonStyle.primary, emoji="📋", custom_id="btn_checkin_universal")
     async def confirm_attendance(self, interaction: discord.Interaction, button: Button):
-        canal_id = interaction.channel.id
-        
-        # Buscamos los enlaces correspondientes usando la ID numérica del canal
-        link_jugador = ENLACES_JUGADOR.get(canal_id)
-        link_grabify_real = ENLACES_GRABIFY.get(canal_id)
-        
-        if not link_jugador or not link_grabify_real:
-            await interaction.response.send_message(
-                f"❌ Este canal no está configurado en el sistema de check-in. (ID detectada: `{canal_id}`)",
-                ephemeral=True
-            )
-            return
-
-        # Capturamos los datos del usuario y del canal
+        # Capturamos los datos del usuario y del canal actual
         user_id = interaction.user.id
         user_global = str(interaction.user)                 
         user_nickname = interaction.user.display_name       
         nombre_canal = interaction.channel.name             
 
         # Construimos los enlaces personalizados con los parámetros del usuario
-        personal_link_jugador = f"{link_jugador}?id={user_id}&user={user_global}"
-        personal_link_staff = f"{link_grabify_real}?id={user_id}&user={user_global}"
+        personal_link_jugador = f"{LINK_JUGADOR}?id={user_id}&user={user_global}"
+        personal_link_staff = f"{LINK_GRABIFY_REAL}?id={user_id}&user={user_global}"
 
-        # 1. Alerta automática al canal privado de staff (con el link real de Grabify)
-        canal_staff = bot.get_channel(CANAL_STAFF_ID)
-        if canal_staff:
+        # 1. Alerta automática al canal de reporte usando su ID fija
+        report_channel = bot.get_channel(CANAL_REPORTE_ID)
+        if report_channel:
             embed_staff = discord.Embed(
                 title="🔔 Nuevo Registro de Asistencia Detectado",
                 color=discord.Color.purple(),
@@ -104,11 +72,11 @@ class CheckinButton(View):
             embed_staff.add_field(name="🏷️ Apodo / Etiqueta en Servidor", value=f"`{user_nickname}`", inline=True)
             embed_staff.add_field(name="🌐 Usuario Global", value=f"`{user_global}`", inline=True)
             embed_staff.add_field(name="🆔 ID de Discord", value=f"`{user_id}`", inline=False)
-            embed_staff.add_field(name="⚔️ Canal / Roster", value=f"#{nombre_canal}", inline=False)
+            embed_staff.add_field(name="⚔️ Canal de Origen", value=f"#{nombre_canal}", inline=False)
             embed_staff.add_field(name="📊 Ver conexion de jugador", value=f"[Acceder]({personal_link_staff})", inline=False)
             embed_staff.set_footer(text="Sistema de Control - Emperium Esports")
             
-            await canal_staff.send(embed=embed_staff)
+            await report_channel.send(embed=embed_staff)
 
         # 2. Mensaje efímero que ve el jugador (con el enlace enmascarado)
         await interaction.response.send_message(
@@ -126,13 +94,20 @@ class CheckinButton(View):
 @bot.event
 async def on_ready():
     print(f"✅ Bot conectado con éxito como {bot.user}")
+    # Registramos la vista persistente para que el botón no expire nunca
+    bot.add_view(CheckinButton())
 
 @bot.command(name="setup_checkin")
 @commands.has_permissions(administrator=True)
 async def setup_checkin(ctx):
-    """Comando para desplegar el panel de asistencia en el canal actual"""
+    """Comando para desplegar el panel de asistencia de forma universal"""
+    # Verificamos que se use en el canal correcto mediante su ID
+    if ctx.channel.id != CANAL_SALA_ID:
+        await ctx.send(f"❌ Este comando solo se puede usar en el canal designado para la sala.", delete_after=5)
+        return
+
     embed = discord.Embed(
-        title="📋 Control de Asistencia - Emperium Esports",
+        title="📋 Control de Asistencia – Emperium Esports",
         description="Haz clic en el botón de abajo para confirmar tu asistencia al roster y completar tu acceso.",
         color=discord.Color.blue()
     )
@@ -142,5 +117,5 @@ async def setup_checkin(ctx):
     await ctx.send(embed=embed, view=view)
     await ctx.message.delete() # Borra el comando del admin para mantener limpio el canal
 
-# Reemplaza 'TU_TOKEN_AQUI' con el token real de tu bot de Discord
+# El token se carga automáticamente de las variables de entorno de Render
 bot.run(os.getenv("DISCORD_TOKEN"))
